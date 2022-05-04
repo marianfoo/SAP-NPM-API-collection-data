@@ -11,7 +11,7 @@ function sleep(ms: number) {
 // 2021-07-01:2021-07-31/express,generator-easy-ui5
 async function getDownloads(packageName: string, periode: string): Promise<number | null> {
 	try {
-		const res = await axios(`https://api.npmjs.org/downloads/point/${periode}/${packageName}`);
+		const res = await axios(`https://api.npmjs.org/downloads/point/${periode}/@sap/${packageName}`);
 		const npmDownloads = res.data as NPMDownloads;
 		if (npmDownloads.package === packageName && npmDownloads.downloads > -1) {
 			return npmDownloads.downloads;
@@ -32,7 +32,7 @@ async function getDownloads(packageName: string, periode: string): Promise<numbe
 
 async function getDownloadsHistory(packageName: string, periode: string): Promise<NPMDownloadsHistory> {
 	try {
-		const res = await axios(`https://api.npmjs.org/downloads/range/${periode}/${packageName}`);
+		const res = await axios(`https://api.npmjs.org/downloads/range/${periode}/@sap/${packageName}`);
 		const npmDownloads = res.data as NPMDownloadsHistory;
 		if (npmDownloads.package === packageName && npmDownloads.downloads.length > -1) {
 			return npmDownloads;
@@ -53,7 +53,7 @@ async function getDownloadsHistory(packageName: string, periode: string): Promis
 
 async function getDownloadsBulk(bulkNamesConcat: string, periode: string): Promise<NPMDownloads[]> {
 	try {
-		const res = await axios(`https://api.npmjs.org/downloads/point/${periode}/${bulkNamesConcat}`);
+		const res = await axios(`https://api.npmjs.org/downloads/point/${periode}/@sap/${bulkNamesConcat}`);
 		return res.data as NPMDownloads[];
 		throw `Invalid reponse from npm-stat.com ${bulkNamesConcat}.`;
 	} catch (err: any) {
@@ -71,7 +71,7 @@ async function getDownloadsBulk(bulkNamesConcat: string, periode: string): Promi
 
 async function getMetaData(packageName: string): Promise<any | null> {
 	try {
-		const res = await axios(`https://registry.npmjs.org/${packageName}`);
+		const res = await axios(`https://registry.npmjs.org/@sap/${packageName}`);
 		return res;
 	} catch (err: any) {
 		if (err?.response?.status === 404) {

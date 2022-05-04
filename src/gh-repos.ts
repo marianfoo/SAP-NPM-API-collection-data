@@ -57,7 +57,7 @@ export default class GitHubRepositoriesProvider {
 			// filter objects from array with name starting with cloud-sdk-op-vdm cloud-sdk-op-vdm-
 			const filteredArray = array.filter((obj) => !obj.name.startsWith("cloud-sdk-op-vdm") && !obj.name.startsWith("cloud-sdk-vdm") && obj.name !== ".DS_Store");
 			// testing only x folders
-			// const slicedArray = filteredArray.slice(0, 100);
+			const slicedArray = filteredArray.slice(0, 120);
 
 			for (const obj of filteredArray) {
 				const subpackage: SubPackage = {
