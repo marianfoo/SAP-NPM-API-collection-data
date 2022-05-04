@@ -18,7 +18,7 @@ import { IPackage, Tags, DataJson } from "./types";
 	// const sources: Source[] = JSON.parse(sourcesJsonString);
 
 	let githubPackages: IPackage[] = await GitHubRepositoriesProvider.get();
-	// githubPackages = await NPMProvider.get(githubPackages);
+	githubPackages = await NPMProvider.get(githubPackages);
 
 	// extract tags from packages info
 	const typesArray: Tags[] = [];
