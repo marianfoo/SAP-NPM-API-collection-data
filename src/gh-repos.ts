@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+// /* eslint-disable @typescript-eslint/no-unsafe-assignment *
 // import { Octokit } from "@octokit/core";
 import { Octokit } from "@octokit/rest";
 import { throttling } from "@octokit/plugin-throttling";
@@ -5,7 +7,7 @@ const MyOctokit = Octokit.plugin(throttling);
 import * as jsdoc2md from "jsdoc-to-markdown";
 import * as yaml from "js-yaml";
 
-import { IPackage, Jsdoc, JsdocType, Params, Source, SubPackage, UI5Yaml } from "./types";
+import { BoUI5Types, IPackage, Jsdoc, JsdocType, Params, Source, SubPackage, UI5Yaml } from "./types";
 import Package from "./Package";
 
 export default class GitHubRepositoriesProvider {
@@ -30,37 +32,52 @@ export default class GitHubRepositoriesProvider {
 		},
 	});
 
-	static async get(sources: Source[]): Promise<IPackage[]> {
+	static async get(): Promise<IPackage[]> {
 		const packages: IPackage[] = [];
+		const source: Source = {
+			subpath: "apis",
+			path: "",
+			owner: "gregorwolf",
+			repo: "SAP-NPM-API-collection",
+			addedToBoUI5: "",
+			type: BoUI5Types.module,
+			tags: [],
+			subpackages: [],
+		};
+		try {
+			const data = await GitHubRepositoriesProvider.octokit.rest.repos.getContent({
+				mediaType: {
+					format: "raw",
+				},
+				owner: "gregorwolf",
+				repo: "SAP-NPM-API-collection",
+				path: `apis`,
+			});
+			const array = data.data as Array<any>;
+			// filter objects from array with name starting with cloud-sdk-op-vdm cloud-sdk-op-vdm-
+			const filteredArray = array.filter((obj) => !obj.name.startsWith("cloud-sdk-op-vdm") && !obj.name.startsWith("cloud-sdk-vdm") && obj.name !== ".DS_Store");
+			// testing only x folders
+			const slicedArray = filteredArray.slice(0, 5);
 
-		for (const source of sources) {
-			source.path = `${source.owner}/${source.repo}`;
-			if (source.subpath && source.subpackages) {
-				const repoInfo = await this.getRepoInfo(source);
-				for (const subpackage of source.subpackages) {
-					const path = `${source.subpath}/${subpackage.name}/`;
-					const packageInfo = await this.fetchRepo(source, path, repoInfo, subpackage);
-					if (packageInfo.type === "task" || packageInfo.type === "middleware" || packageInfo.type === "tooling") {
-						try {
-							packageInfo["jsdoc"] = await this.getJsdoc(source, path);
-						} catch (error) {
-							console.log(`Error while fetching jsdoc for ${source.path}`);
-						}
-					}
-					packages.push(packageInfo);
-				}
-			} else {
-				const repoInfo = await this.getRepoInfo(source);
-				const packageInfo = await this.fetchRepo(source, "", repoInfo, source);
-				if (packageInfo.type === "task" || packageInfo.type === "middleware" || packageInfo.type === "tooling") {
-					try {
-						packageInfo["jsdoc"] = await this.getJsdoc(source, "");
-					} catch (error) {
-						console.log(`Error while fetching jsdoc for ${source.path}`);
-					}
-				}
+			for (const obj of slicedArray) {
+				const subpackage: SubPackage = {
+					name: obj.name,
+					addedToBoUI5: "",
+					type: BoUI5Types.module,
+					tags: [],
+				};
+				source.subpackages.push(subpackage);
+			}
+
+			const repoInfo = await this.getRepoInfo(source);
+			for (const subpackage of source.subpackages) {
+				const path = `${source.subpath}/${subpackage.name}/`;
+				const packageInfo = await this.fetchRepo(source, path, repoInfo, subpackage);
 				packages.push(packageInfo);
 			}
+			console.log(array[0]);
+		} catch (error) {
+			console.log(error);
 		}
 
 		return packages;
@@ -89,26 +106,27 @@ export default class GitHubRepositoriesProvider {
 		packageObject.githublink = repo.data.html_url;
 		packageObject.forks = repo.data.forks;
 		packageObject.stars = repo.data.stargazers_count;
-		packageObject.license = repo.data.license.key;
-		packageObject.defaultBranch = repo.data.default_branch;
+		// packageObject.license = repo.data.license.key;
+		// packageObject.defaultBranch = repo.data.default_branch;
 		return packageObject;
 	}
 
-	static async fetchRepo(source: Source, path: string, repoInfo: Package, sourcePackage: Source | SubPackage): Promise<IPackage> {
+	static async fetchRepo(source: Source, path: string, repoInfo: Package, sourcePackage: SubPackage): Promise<IPackage> {
 		let packageReturn: IPackage = new Package();
 		try {
-			const data = await GitHubRepositoriesProvider.octokit.rest.repos.getContent({
-				mediaType: {
-					format: "raw",
-				},
-				owner: source.owner,
-				repo: source.repo,
-				path: `${path}package.json`,
-			});
-			const string = data.data.toString();
-			packageReturn = JSON.parse(string) as Package;
+			// const data = await GitHubRepositoriesProvider.octokit.rest.repos.getContent({
+			// 	mediaType: {
+			// 		format: "raw",
+			// 	},
+			// 	owner: source.owner,
+			// 	repo: source.repo,
+			// 	path: `${path}package.json`,
+			// });
+			// const string = data.data.toString();
+			// packageReturn = JSON.parse(string) as Package;
+			packageReturn.name = sourcePackage.name;
 			packageReturn.type = sourcePackage.type;
-			packageReturn.tags = sourcePackage.tags;
+			// packageReturn.tags = sourcePackage.tags;
 			packageReturn.gitHubOwner = source.owner;
 			packageReturn.gitHubRepo = source.repo;
 			packageReturn.license = repoInfo.license;
@@ -118,7 +136,7 @@ export default class GitHubRepositoriesProvider {
 			packageReturn.createdAt = repoInfo.createdAt;
 			packageReturn.updatedAt = repoInfo.updatedAt;
 
-			packageReturn.githublink = `${repoInfo.githublink}/tree/main/${path}`;
+			// packageReturn.githublink = `${repoInfo.githublink}/tree/main/${path}`;
 			try {
 				const readme = await GitHubRepositoriesProvider.octokit.rest.repos.getContent({
 					mediaType: {
@@ -132,6 +150,20 @@ export default class GitHubRepositoriesProvider {
 				packageReturn.readme = readmeString;
 			} catch (error) {
 				console.log(`No README.mound for ${packageReturn.githublink}`);
+			}
+			try {
+				const readme = await GitHubRepositoriesProvider.octokit.rest.repos.getContent({
+					mediaType: {
+						format: "raw",
+					},
+					owner: source.owner,
+					repo: source.repo,
+					path: `${path}CHANGELOG.md`,
+				});
+				const readmeString = readme.data.toString();
+				packageReturn.changelog = readmeString;
+			} catch (error) {
+				console.log(`No CHANGELOG.mound for ${packageReturn.githublink}`);
 			}
 		} catch (error) {
 			console.log(error);

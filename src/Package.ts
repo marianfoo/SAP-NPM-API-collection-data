@@ -1,6 +1,7 @@
 import { IPackage, PackageDownloadsHistory } from "./types";
 
 export default class Package implements IPackage {
+	changelog: string;
 	name: string;
 	description: string;
 	author: string;

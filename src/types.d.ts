@@ -1,4 +1,4 @@
-enum BoUI5Types {
+const enum BoUI5Types {
 	task = "task",
 	middleware = "middleware",
 	tooling = "tooling",
@@ -37,6 +37,7 @@ export interface IPackage {
 	type: string;
 	tags: string[];
 	readme: string;
+	changelog: string;
 	forks: number;
 	stars: number;
 	updatedAt: string;
