@@ -34,6 +34,7 @@ export default class GitHubRepositoriesProvider {
 
 	static async get(): Promise<IPackage[]> {
 		const packages: IPackage[] = [];
+		// base repo
 		const source: Source = {
 			subpath: "apis",
 			path: "",
@@ -57,7 +58,7 @@ export default class GitHubRepositoriesProvider {
 			// filter objects from array with name starting with cloud-sdk-op-vdm cloud-sdk-op-vdm-
 			const filteredArray = array.filter((obj) => !obj.name.startsWith("cloud-sdk-op-vdm") && !obj.name.startsWith("cloud-sdk-vdm") && obj.name !== ".DS_Store");
 			// testing only x folders
-			const slicedArray = filteredArray.slice(0, 120);
+			const slicedArray = filteredArray.slice(0, 30);
 
 			for (const obj of filteredArray) {
 				const subpackage: SubPackage = {
@@ -72,11 +73,12 @@ export default class GitHubRepositoriesProvider {
 			const repoInfo = await this.getRepoInfo(source);
 			for (const subpackage of source.subpackages) {
 				const path = `${source.subpath}/${subpackage.name}/`;
+				console.log(`Fetching GitHub Data from ${source.owner}/${source.repo}/${source.subpath}/${subpackage.name}/`);
 				const packageInfo = await this.fetchRepo(source, path, repoInfo, subpackage);
 				packages.push(packageInfo);
 			}
-			console.log(array[0]);
 		} catch (error) {
+			console.log(`1Error while fetching GitHub Data from ${source.owner}/${source.repo}/${source.subpath}`);
 			console.log(error);
 		}
 
@@ -149,7 +151,7 @@ export default class GitHubRepositoriesProvider {
 				const readmeString = readme.data.toString();
 				packageReturn.readme = readmeString;
 			} catch (error) {
-				console.log(`No README.mound for ${packageReturn.githublink}`);
+				console.log(`No README.md found for ${source.owner}/${source.repo}/${path}`);
 			}
 			try {
 				const readme = await GitHubRepositoriesProvider.octokit.rest.repos.getContent({
@@ -163,117 +165,14 @@ export default class GitHubRepositoriesProvider {
 				const readmeString = readme.data.toString();
 				packageReturn.changelog = readmeString;
 			} catch (error) {
-				console.log(`No CHANGELOG.mound for ${packageReturn.githublink}`);
+				console.log(`No CHANGELOG.md found for ${source.owner}/${source.repo}/${path}`);
 			}
 		} catch (error) {
+			console.log(`2Error while fetching GitHub Data from ${source.owner}/${source.repo}/${source.subpath}`);
 			console.log(error);
 		}
 
 		return packageReturn;
-	}
-
-	static async getJsdoc(source: Source, path: string): Promise<Jsdoc> {
-		let entryPath = "";
-		const yamlArray = await this.parseYaml(source, path);
-		const jsdoc: Jsdoc = {};
-		for (const yaml of yamlArray) {
-			if (yaml.type === "server-middleware") {
-				yaml.type = "middleware";
-				entryPath = yaml["middleware"].path;
-			} else if (yaml.type === "task") {
-				entryPath = yaml["task"].path;
-			} else {
-				continue;
-			}
-
-			const returnObject = await this.fetchParams(source, path, entryPath);
-			if (returnObject && returnObject.params && returnObject.markdown) {
-				if (yaml.type === "middleware") {
-					jsdoc.middleware = {
-						params: returnObject.params,
-						markdown: returnObject.markdown,
-					};
-				} else if (yaml.type === "task") {
-					jsdoc.task = {
-						params: returnObject.params,
-						markdown: returnObject.markdown,
-					};
-				}
-			}
-		}
-		return jsdoc;
-	}
-
-	static async parseYaml(source: Source, path: string): Promise<UI5Yaml[]> {
-		const yamlArray: UI5Yaml[] = [];
-		try {
-			const indexJs = await GitHubRepositoriesProvider.octokit.rest.repos.getContent({
-				mediaType: {
-					format: "raw",
-				},
-				owner: source.owner,
-				repo: source.repo,
-				path: `${path}ui5.yaml`,
-			});
-			const indexString = indexJs.data.toString();
-			const yamlStringArray = indexString.split("---");
-			for (const yamlString of yamlStringArray) {
-				if (yamlString.length > 0) {
-					const yamlObject = yaml.load(yamlString) as UI5Yaml;
-					yamlArray.push(yamlObject);
-				}
-			}
-			return yamlArray;
-		} catch (error) {
-			console.log(error);
-		}
-	}
-
-	static async fetchParams(source: Source, path: string, entryPath: string): Promise<JsdocType> {
-		const returnObject: JsdocType = {
-			params: undefined,
-			markdown: "",
-		};
-		const arr: Params[] = [];
-
-		try {
-			const indexJs = await GitHubRepositoriesProvider.octokit.rest.repos.getContent({
-				mediaType: {
-					format: "raw",
-				},
-				owner: source.owner,
-				repo: source.repo,
-				path: `${path}${entryPath}`,
-			});
-			const indexString = indexJs.data.toString();
-			const opt: jsdoc2md.JsdocOptions = {
-				source: indexString,
-				files: undefined,
-			};
-			const markdown = await jsdoc2md.render(opt);
-			const data = await jsdoc2md.getTemplateData(opt);
-			const typedef: any[] = data.filter((x: any) => x.kind === "typedef");
-			if (typedef.length > 0) {
-				typedef[0].properties.forEach((property: any) => {
-					const param: Params = {
-						type: "",
-						description: "",
-						name: "",
-						optional: false,
-					};
-					param.name = property.name as string;
-					param.description = property.description as string;
-					param.optional = property.optional as boolean;
-					param.type = property.type.names[0] as string;
-					arr.push(param);
-				});
-				returnObject.params = arr;
-			}
-			returnObject.markdown = markdown;
-			return returnObject;
-		} catch (error) {
-			console.log(error);
-		}
 	}
 
 	static async getLastCommitDate(source: Source, defaultBranch: string): Promise<string> {
