@@ -6,7 +6,8 @@ import { throttling } from "@octokit/plugin-throttling";
 const MyOctokit = Octokit.plugin(throttling);
 import * as jsdoc2md from "jsdoc-to-markdown";
 import * as yaml from "js-yaml";
-
+import { exec } from "shelljs";
+import { readFileSync, writeFileSync } from "fs";
 import { BoUI5Types, IPackage, Jsdoc, JsdocType, Params, Source, SubPackage, UI5Yaml } from "./types";
 import Package from "./Package";
 
@@ -34,6 +35,7 @@ export default class GitHubRepositoriesProvider {
 
 	static async get(): Promise<IPackage[]> {
 		const packages: IPackage[] = [];
+		exec(`git clone https://github.com/gregorwolf/SAP-NPM-API-collection`);
 		// base repo
 		const source: Source = {
 			subpath: "apis",
@@ -58,9 +60,9 @@ export default class GitHubRepositoriesProvider {
 			// filter objects from array with name starting with cloud-sdk-op-vdm cloud-sdk-op-vdm-
 			const filteredArray = array.filter((obj) => !obj.name.startsWith("cloud-sdk-op-vdm") && !obj.name.startsWith("cloud-sdk-vdm") && obj.name !== ".DS_Store");
 			// testing only x folders
-			const slicedArray = filteredArray.slice(0, 30);
+			const slicedArray = filteredArray.slice(0, 20);
 
-			for (const obj of filteredArray) {
+			for (const obj of slicedArray) {
 				const subpackage: SubPackage = {
 					name: obj.name,
 					addedToBoUI5: "",
@@ -73,12 +75,12 @@ export default class GitHubRepositoriesProvider {
 			const repoInfo = await this.getRepoInfo(source);
 			for (const subpackage of source.subpackages) {
 				const path = `${source.subpath}/${subpackage.name}/`;
-				console.log(`Fetching GitHub Data from ${source.owner}/${source.repo}/${source.subpath}/${subpackage.name}/`);
-				const packageInfo = await this.fetchRepo(source, path, repoInfo, subpackage);
+				console.log(`Reading Data from ${source.owner}/${source.repo}/${source.subpath}/${subpackage.name}/`);
+				const packageInfo = this.fetchRepo(source, path, repoInfo, subpackage);
 				packages.push(packageInfo);
 			}
 		} catch (error) {
-			console.log(`1Error while fetching GitHub Data from ${source.owner}/${source.repo}/${source.subpath}`);
+			console.log(`Error while reading GitHub Data from ${source.owner}/${source.repo}/${source.subpath}`);
 			console.log(error);
 		}
 
@@ -92,43 +94,19 @@ export default class GitHubRepositoriesProvider {
 			repo: source.repo,
 		});
 		packageObject.createdAt = repo.data.created_at;
-		// generator don´t have a npm module, get updatedat from last commit
-		if (source.type === "generator") {
-			try {
-				packageObject.updatedAt = await this.getLastCommitDate(source, repo.data.default_branch);
-			} catch (error) {
-				console.log(error);
-				console.log(`Error while fetching last commit date for ${source.path}`);
-				packageObject.updatedAt = repo.data.updated_at;
-			}
-		} else {
-			packageObject.updatedAt = repo.data.updated_at;
-		}
+		packageObject.updatedAt = repo.data.updated_at;
 
 		packageObject.githublink = repo.data.html_url;
 		packageObject.forks = repo.data.forks;
 		packageObject.stars = repo.data.stargazers_count;
-		// packageObject.license = repo.data.license.key;
-		// packageObject.defaultBranch = repo.data.default_branch;
 		return packageObject;
 	}
 
-	static async fetchRepo(source: Source, path: string, repoInfo: Package, sourcePackage: SubPackage): Promise<IPackage> {
-		let packageReturn: IPackage = new Package();
+	static fetchRepo(source: Source, path: string, repoInfo: Package, sourcePackage: SubPackage): IPackage {
+		const packageReturn: IPackage = new Package();
 		try {
-			// const data = await GitHubRepositoriesProvider.octokit.rest.repos.getContent({
-			// 	mediaType: {
-			// 		format: "raw",
-			// 	},
-			// 	owner: source.owner,
-			// 	repo: source.repo,
-			// 	path: `${path}package.json`,
-			// });
-			// const string = data.data.toString();
-			// packageReturn = JSON.parse(string) as Package;
 			packageReturn.name = sourcePackage.name;
 			packageReturn.type = sourcePackage.type;
-			// packageReturn.tags = sourcePackage.tags;
 			packageReturn.gitHubOwner = source.owner;
 			packageReturn.gitHubRepo = source.repo;
 			packageReturn.license = repoInfo.license;
@@ -138,55 +116,21 @@ export default class GitHubRepositoriesProvider {
 			packageReturn.createdAt = repoInfo.createdAt;
 			packageReturn.updatedAt = repoInfo.updatedAt;
 
-			// packageReturn.githublink = `${repoInfo.githublink}/tree/main/${path}`;
 			try {
-				const readme = await GitHubRepositoriesProvider.octokit.rest.repos.getContent({
-					mediaType: {
-						format: "raw",
-					},
-					owner: source.owner,
-					repo: source.repo,
-					path: `${path}README.md`,
-				});
-				const readmeString = readme.data.toString();
-				packageReturn.readme = readmeString;
+				packageReturn.readme = readFileSync(`${__dirname}/../SAP-NPM-API-collection/apis/${sourcePackage.name}/README.md`).toString();
 			} catch (error) {
 				console.log(`No README.md found for ${source.owner}/${source.repo}/${path}`);
 			}
 			try {
-				const readme = await GitHubRepositoriesProvider.octokit.rest.repos.getContent({
-					mediaType: {
-						format: "raw",
-					},
-					owner: source.owner,
-					repo: source.repo,
-					path: `${path}CHANGELOG.md`,
-				});
-				const readmeString = readme.data.toString();
-				packageReturn.changelog = readmeString;
+				packageReturn.changelog = readFileSync(`${__dirname}/../SAP-NPM-API-collection/apis/${sourcePackage.name}/CHANGELOG.md`).toString();
 			} catch (error) {
 				console.log(`No CHANGELOG.md found for ${source.owner}/${source.repo}/${path}`);
 			}
 		} catch (error) {
-			console.log(`2Error while fetching GitHub Data from ${source.owner}/${source.repo}/${source.subpath}`);
+			console.log(`Error while reading GitHub Data from ${source.owner}/${source.repo}/${source.subpath}`);
 			console.log(error);
 		}
 
 		return packageReturn;
-	}
-
-	static async getLastCommitDate(source: Source, defaultBranch: string): Promise<string> {
-		const defaultBranchReference = await GitHubRepositoriesProvider.octokit.rest.git.getRef({
-			owner: source.owner,
-			repo: source.repo,
-			ref: `heads/${defaultBranch}`,
-		});
-		const latestCommit = await GitHubRepositoriesProvider.octokit.rest.git.getCommit({
-			owner: source.owner,
-			repo: source.repo,
-			commit_sha: defaultBranchReference.data.object.sha,
-		});
-
-		return latestCommit.data.committer.date;
 	}
 }
