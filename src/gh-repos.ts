@@ -62,7 +62,7 @@ export default class GitHubRepositoriesProvider {
 			// testing only x folders
 			const slicedArray = filteredArray.slice(0, 20);
 
-			for (const obj of slicedArray) {
+			for (const obj of filteredArray) {
 				const subpackage: SubPackage = {
 					name: obj.name,
 					addedToBoUI5: "",
