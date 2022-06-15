@@ -113,6 +113,7 @@ export default class NpmProvider {
 				source.updatedAt = metaData?.data?.time?.modified;
 				source.versions = this.formatVersionToArray(metaData?.data?.time);
 				source.npmlink = `https://www.npmjs.com/package/@sap/${source.name}`;
+				source.license = metaData?.data?.license;
 			} catch (error) {
 				console.error(`Error fetching npm metadata for ${source.name}`);
 			}
