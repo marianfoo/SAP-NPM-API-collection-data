@@ -7,7 +7,8 @@ const MyOctokit = Octokit.plugin(throttling);
 import * as jsdoc2md from "jsdoc-to-markdown";
 import * as yaml from "js-yaml";
 import { exec } from "shelljs";
-import { readFileSync, writeFileSync } from "fs";
+import { readFileSync, writeFileSync, readdir, readdirSync, lstatSync, statSync, rmSync } from "fs";
+import { resolve } from "path";
 import { BoUI5Types, IPackage, Jsdoc, JsdocType, Params, Source, SubPackage, UI5Yaml } from "./types";
 import Package from "./Package";
 
@@ -35,6 +36,7 @@ export default class GitHubRepositoriesProvider {
 
 	static async get(): Promise<IPackage[]> {
 		const packages: IPackage[] = [];
+		// rmSync(`${__dirname}/../SAP-NPM-API-collection`, { recursive: true, force: true });
 		exec(`git clone https://github.com/gregorwolf/SAP-NPM-API-collection`);
 		// base repo
 		const source: Source = {
@@ -126,11 +128,43 @@ export default class GitHubRepositoriesProvider {
 			} catch (error) {
 				console.log(`No CHANGELOG.md found for ${source.owner}/${source.repo}/${path}`);
 			}
+			try {
+				const files = this.readDirFiles(`${__dirname}/../SAP-NPM-API-collection/apis/${sourcePackage.name}`);
+				writeFileSync(`${__dirname}/../data/docs/${sourcePackage.name}.json`, JSON.stringify(files));
+			} catch (error) {
+				console.log(`No docs folder found for ${source.owner}/${source.repo}/${path}`);
+			}
 		} catch (error) {
 			console.log(`Error while reading GitHub Data from ${source.owner}/${source.repo}/${source.subpath}`);
 			console.log(error);
 		}
 
 		return packageReturn;
+	}
+
+	static readDirFiles(path: string): any {
+		let filesMD: any[] = [];
+		let files: string[] = [];
+		const rootDir = readdirSync(path);
+		for (const file of rootDir) {
+			const filePath = `${path}/${file}`;
+			const fileStat = statSync(filePath);
+			let mdObject: any = {
+				name: file,
+			};
+
+			if (fileStat.isDirectory()) {
+				mdObject.nodes = [];
+				mdObject.nodes = mdObject.nodes.concat(this.readDirFiles(filePath));
+				filesMD.push(mdObject);
+			} else {
+				if (file.endsWith(".md")) {
+					mdObject.content = readFileSync(`${path}/${file}`).toString();
+					filesMD.push(mdObject);
+				}
+				files.push(filePath);
+			}
+		}
+		return filesMD;
 	}
 }

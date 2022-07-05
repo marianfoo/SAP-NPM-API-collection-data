@@ -1,0 +1,1 @@
+[{"name":"README.md","content":"# @sap/wing-service-binding\r\n\r\n## Overview\r\n\r\nWing-service-binding is the npm package which provide the ability to bind a module (e.g. ui, cap service etc) with service metadata.\r\n"}]
